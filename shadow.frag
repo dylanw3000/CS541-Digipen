@@ -1,0 +1,16 @@
+/////////////////////////////////////////////////////////////////////////
+// Pixel shader for lighting
+////////////////////////////////////////////////////////////////////////
+#version 330
+
+out vec4 FragColor;
+
+// These definitions agree with the ObjectIds enum in scene.h
+
+in vec4 position;
+uniform bool reflective;
+
+void main()
+{
+    gl_FragData[0] = position;
+}
