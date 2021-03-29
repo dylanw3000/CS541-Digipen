@@ -169,9 +169,10 @@ void Scene::InitializeScene()
     
 
 
-    shadowFBO.CreateFBO(4000, 4000);
-    lowerReflectFBO.CreateFBO(1000, 1000);
-    upperReflectFBO.CreateFBO(1000, 1000);
+    shadowFBO.CreateFBO(4000, 4000, false);
+    lowerReflectFBO.CreateFBO(1000, 1000, false);
+    upperReflectFBO.CreateFBO(1000, 1000, false);
+    GBufferFBO.CreateFBO(1000, 1000, true);
 
     CHECKERROR;
     objectRoot = new Object(NULL, nullId);
@@ -183,10 +184,13 @@ void Scene::InitializeScene()
     // Create the lighting shader program from source code files.
     // @@ Initialize additional shaders if necessary
     lightingProgram = new ShaderProgram();
-    lightingProgram->AddShader("final.vert", GL_VERTEX_SHADER);
-    lightingProgram->AddShader("final.frag", GL_FRAGMENT_SHADER);
-    lightingProgram->AddShader("lighting.vert", GL_VERTEX_SHADER);
-    lightingProgram->AddShader("lighting.frag", GL_FRAGMENT_SHADER);
+    lightingProgram->AddShader("multilight.vert", GL_VERTEX_SHADER);
+    lightingProgram->AddShader("multilight.frag", GL_FRAGMENT_SHADER);
+
+    // lightingProgram->AddShader("final.vert", GL_VERTEX_SHADER);
+    // lightingProgram->AddShader("final.frag", GL_FRAGMENT_SHADER);
+    // lightingProgram->AddShader("lighting.vert", GL_VERTEX_SHADER);
+    // lightingProgram->AddShader("lighting.frag", GL_FRAGMENT_SHADER);
 
     glBindAttribLocation(lightingProgram->programId, 0, "vertex");
     glBindAttribLocation(lightingProgram->programId, 1, "vertexNormal");
@@ -219,6 +223,31 @@ void Scene::InitializeScene()
     glBindAttribLocation(lightingProgram->programId, 2, "vertexTexture");
     glBindAttribLocation(lightingProgram->programId, 3, "vertexTangent");
     reflectionProgram->LinkProgram();
+
+
+
+    GBufferProgram = new ShaderProgram();
+    GBufferProgram->AddShader("gbuff.vert", GL_VERTEX_SHADER);
+    GBufferProgram->AddShader("gbuff.frag", GL_FRAGMENT_SHADER);
+
+    glBindAttribLocation(GBufferProgram->programId, 0, "vertex");
+    glBindAttribLocation(GBufferProgram->programId, 1, "vertexNormal");
+    glBindAttribLocation(GBufferProgram->programId, 2, "vertexTexture");
+    glBindAttribLocation(GBufferProgram->programId, 3, "vertexTangent");
+    GBufferProgram->LinkProgram();
+
+
+
+    localLightProgram = new ShaderProgram();
+    localLightProgram->AddShader("localLight.vert", GL_VERTEX_SHADER);
+    localLightProgram->AddShader("localLight.frag", GL_FRAGMENT_SHADER);
+
+    glBindAttribLocation(localLightProgram->programId, 0, "vertex");
+    glBindAttribLocation(localLightProgram->programId, 1, "vertexNormal");
+    glBindAttribLocation(localLightProgram->programId, 2, "vertexTexture");
+    glBindAttribLocation(localLightProgram->programId, 3, "vertexTangent");
+
+    localLightProgram->LinkProgram();
 
 
     
@@ -495,7 +524,7 @@ void Scene::DrawScene()
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
 
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, shadowFBO.textureID);
+    glBindTexture(GL_TEXTURE_2D, shadowFBO.textureID[0]);
     loc = glGetUniformLocation(programId, "shadowMap");
     glUniform1i(loc, 2);
 
@@ -547,7 +576,7 @@ void Scene::DrawScene()
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
 
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, shadowFBO.textureID);
+    glBindTexture(GL_TEXTURE_2D, shadowFBO.textureID[0]);
     loc = glGetUniformLocation(programId, "shadowMap");
     glUniform1i(loc, 2);
 
@@ -645,6 +674,174 @@ void Scene::DrawScene()
     lowerReflectFBO.Unbind();
     reflectionProgram->Unuse();
     CHECKERROR;
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // CS 562
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    {
+        GBufferProgram->Use();
+        CHECKERROR;
+        GBufferFBO.Bind();
+        CHECKERROR;
+
+        programId = GBufferProgram->programId;
+
+        glViewport(0, 0, width, height);
+        glClearColor(0.5, 0.5, 0.5, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        CHECKERROR;
+
+        loc = glGetUniformLocation(programId, "WorldProj");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
+        CHECKERROR;
+
+        loc = glGetUniformLocation(programId, "WorldView");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
+
+        loc = glGetUniformLocation(programId, "WorldInverse");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
+
+        loc = glGetUniformLocation(programId, "lightPos");
+        glUniform3fv(loc, 1, &(lightPos[0]));
+
+        loc = glGetUniformLocation(programId, "mode");
+        glUniform1i(loc, mode);
+
+        loc = glGetUniformLocation(programId, "time");
+        glUniform1f(loc, (float)total_time);
+        CHECKERROR;
+
+
+        // glm::vec3 Light(3, 3, 3), Ambient(0.2, 0.2, 0.2);
+
+        loc = glGetUniformLocation(programId, "Light");
+        glUniform3fv(loc, 1, &(Light[0]));
+
+        loc = glGetUniformLocation(programId, "Ambient");
+        glUniform3fv(loc, 1, &(Ambient[0]));
+
+        loc = glGetUniformLocation(programId, "ShadowMatrix");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, shadowFBO.textureID[0]);
+        loc = glGetUniformLocation(programId, "shadowMap");
+        glUniform1i(loc, 2);
+
+
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, upperReflectFBO.textureID[0]);
+        loc = glGetUniformLocation(programId, "upperReflect");
+        glUniform1i(loc, 3);
+
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, lowerReflectFBO.textureID[0]);
+        loc = glGetUniformLocation(programId, "lowerReflect");
+        glUniform1i(loc, 4);
+        CHECKERROR;
+
+        {
+            int unit = 5;
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, skyTex->textureId);
+            loc = glGetUniformLocation(programId, "skyTex");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, groundTex->textureId);
+            loc = glGetUniformLocation(programId, "groundTex");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, wallTex->textureId);
+            loc = glGetUniformLocation(programId, "wallTex");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, floorTex->textureId);
+            loc = glGetUniformLocation(programId, "floorTex");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, teapotTex->textureId);
+            loc = glGetUniformLocation(programId, "teapotTex");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, frameTex->textureId);
+            loc = glGetUniformLocation(programId, "frameTex");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, lFrameTex->textureId);
+            loc = glGetUniformLocation(programId, "lFrameTex");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, rFrameTex->textureId);
+            loc = glGetUniformLocation(programId, "rFrameTex");
+            glUniform1i(loc, unit);
+
+            //// Normal Maps
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, wallNormal->textureId);
+            loc = glGetUniformLocation(programId, "wallNormal");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, floorNormal->textureId);
+            loc = glGetUniformLocation(programId, "floorNormal");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, frameNormal->textureId);
+            loc = glGetUniformLocation(programId, "frameNormal");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, seaNormal->textureId);
+            loc = glGetUniformLocation(programId, "seaNormal");
+            glUniform1i(loc, unit);
+        }
+
+        GLenum attachments[4] = { GL_COLOR_ATTACHMENT0_EXT, GL_COLOR_ATTACHMENT1_EXT, GL_COLOR_ATTACHMENT2_EXT, GL_COLOR_ATTACHMENT3_EXT };
+        glDrawBuffers(4, attachments);
+        CHECKERROR;
+
+        objectRoot->Draw(GBufferProgram, Identity);
+        CHECKERROR;
+
+        GBufferFBO.Unbind();
+        GBufferProgram->Unuse();
+        CHECKERROR;
+    }
+    
+
     
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -652,14 +849,28 @@ void Scene::DrawScene()
     ////////////////////////////////////////////////////////////////////////////////
     
     // Choose the lighting shader
+    
     lightingProgram->Use();
     programId = lightingProgram->programId;
 
     // Set the viewport, and clear the screen
     glViewport(0, 0, width, height);
-    glClearColor(0.5, 0.5, 0.5, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    CHECKERROR;
 
+    /*
+    glEnable(GL_DEPTH_TEST);
+    */
+    /*
+    glBlendFunc(GL_ONE, GL_ONE);
+    glEnable(GL_BLEND);
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+    */
+    
+    
 
     // @@ The scene specific parameters (uniform variables) used by
     // the shader are set here.  Object specific parameters are set in
@@ -676,6 +887,9 @@ void Scene::DrawScene()
 
     loc = glGetUniformLocation(programId, "lightPos");
     glUniform3fv(loc, 1, &(lightPos[0]));  
+
+    loc = glGetUniformLocation(programId, "eyePos");
+    glUniform3fv(loc, 1, &(eye[0]));
 
     loc = glGetUniformLocation(programId, "mode");
     glUniform1i(loc, mode);
@@ -696,104 +910,48 @@ void Scene::DrawScene()
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
 
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, shadowFBO.textureID);
+    glBindTexture(GL_TEXTURE_2D, shadowFBO.textureID[0]);
     loc = glGetUniformLocation(programId, "shadowMap");
     glUniform1i(loc, 2);
 
     
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, upperReflectFBO.textureID);
+    glBindTexture(GL_TEXTURE_2D, upperReflectFBO.textureID[0]);
     loc = glGetUniformLocation(programId, "upperReflect");
     glUniform1i(loc, 3);
     
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, lowerReflectFBO.textureID);
+    glBindTexture(GL_TEXTURE_2D, lowerReflectFBO.textureID[0]);
     loc = glGetUniformLocation(programId, "lowerReflect");
     glUniform1i(loc, 4);
 
     {
         int unit = 5;
+
         glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, skyTex->textureId);
-        loc = glGetUniformLocation(programId, "skyTex");
+        glBindTexture(GL_TEXTURE_2D, GBufferFBO.textureID[0]);
+        loc = glGetUniformLocation(programId, "worldPosMap");
         glUniform1i(loc, unit);
 
         unit++;
 
         glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, groundTex->textureId);
-        loc = glGetUniformLocation(programId, "groundTex");
+        glBindTexture(GL_TEXTURE_2D, GBufferFBO.textureID[1]);
+        loc = glGetUniformLocation(programId, "normalVecMap");
         glUniform1i(loc, unit);
 
         unit++;
 
         glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, wallTex->textureId);
-        loc = glGetUniformLocation(programId, "wallTex");
+        glBindTexture(GL_TEXTURE_2D, GBufferFBO.textureID[2]);
+        loc = glGetUniformLocation(programId, "KdMap");
         glUniform1i(loc, unit);
 
         unit++;
 
         glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, floorTex->textureId);
-        loc = glGetUniformLocation(programId, "floorTex");
-        glUniform1i(loc, unit);
-
-        unit++;
-
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, teapotTex->textureId);
-        loc = glGetUniformLocation(programId, "teapotTex");
-        glUniform1i(loc, unit);
-
-        unit++;
-
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, frameTex->textureId);
-        loc = glGetUniformLocation(programId, "frameTex");
-        glUniform1i(loc, unit);
-
-        unit++;
-
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, lFrameTex->textureId);
-        loc = glGetUniformLocation(programId, "lFrameTex");
-        glUniform1i(loc, unit);
-
-        unit++;
-
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, rFrameTex->textureId);
-        loc = glGetUniformLocation(programId, "rFrameTex");
-        glUniform1i(loc, unit);
-
-        /*** Normal Maps ***/
-        unit++;
-
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, wallNormal->textureId);
-        loc = glGetUniformLocation(programId, "wallNormal");
-        glUniform1i(loc, unit);
-
-        unit++;
-
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, floorNormal->textureId);
-        loc = glGetUniformLocation(programId, "floorNormal");
-        glUniform1i(loc, unit);
-
-        unit++;
-
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, frameNormal->textureId);
-        loc = glGetUniformLocation(programId, "frameNormal");
-        glUniform1i(loc, unit);
-
-        unit++;
-
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, seaNormal->textureId);
-        loc = glGetUniformLocation(programId, "seaNormal");
+        glBindTexture(GL_TEXTURE_2D, GBufferFBO.textureID[3]);
+        loc = glGetUniformLocation(programId, "KsMap");
         glUniform1i(loc, unit);
     }
 
@@ -803,13 +961,146 @@ void Scene::DrawScene()
     objectRoot->Draw(lightingProgram, Identity);
     CHECKERROR; 
 
+    /*
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+    /*
+    glDisable(GL_DEPTH_TEST);
+    */
     
     // Turn off the shader
     lightingProgram->Unuse();
+    
 
     ////////////////////////////////////////////////////////////////////////////////
     // End of Lighting pass
     ////////////////////////////////////////////////////////////////////////////////
+
+    
+    /////// Local lights
+    localLightProgram->Use();
+    programId = localLightProgram->programId;
+
+    // Set the viewport, and clear the screen
+    /*
+    glViewport(0, 0, width, height);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    CHECKERROR;
+    */
+    
+    glDisable(GL_DEPTH_TEST);
+    glBlendFunc(GL_ONE, GL_ONE);
+    glEnable(GL_BLEND);
+    
+
+
+    // @@ The scene specific parameters (uniform variables) used by
+    // the shader are set here.  Object specific parameters are set in
+    // the Draw procedure in object.cpp
+
+    loc = glGetUniformLocation(programId, "WorldProj");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
+
+    loc = glGetUniformLocation(programId, "WorldView");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
+
+    loc = glGetUniformLocation(programId, "WorldInverse");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
+
+    // loc = glGetUniformLocation(programId, "lightPos");
+    // glUniform3fv(loc, 1, &(lightPos[0]));
+
+    loc = glGetUniformLocation(programId, "eyePos");
+    glUniform3fv(loc, 1, &(eye[0]));
+
+    loc = glGetUniformLocation(programId, "mode");
+    glUniform1i(loc, mode);
+
+    loc = glGetUniformLocation(programId, "time");
+    glUniform1f(loc, (float)total_time);
+
+
+    // glm::vec3 Light(3, 3, 3), Ambient(0.2, 0.2, 0.2);
+
+    loc = glGetUniformLocation(programId, "Ambient");
+    glUniform3fv(loc, 1, &(Ambient[0]));
+
+    loc = glGetUniformLocation(programId, "ShadowMatrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, shadowFBO.textureID[0]);
+    loc = glGetUniformLocation(programId, "shadowMap");
+    glUniform1i(loc, 2);
+
+
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, upperReflectFBO.textureID[0]);
+    loc = glGetUniformLocation(programId, "upperReflect");
+    glUniform1i(loc, 3);
+
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, lowerReflectFBO.textureID[0]);
+    loc = glGetUniformLocation(programId, "lowerReflect");
+    glUniform1i(loc, 4);
+
+    {
+        int unit = 5;
+
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, GBufferFBO.textureID[0]);
+        loc = glGetUniformLocation(programId, "worldPosMap");
+        glUniform1i(loc, unit);
+
+        unit++;
+
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, GBufferFBO.textureID[1]);
+        loc = glGetUniformLocation(programId, "normalVecMap");
+        glUniform1i(loc, unit);
+
+        unit++;
+
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, GBufferFBO.textureID[2]);
+        loc = glGetUniformLocation(programId, "KdMap");
+        glUniform1i(loc, unit);
+
+        unit++;
+
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, GBufferFBO.textureID[3]);
+        loc = glGetUniformLocation(programId, "KsMap");
+        glUniform1i(loc, unit);
+    }
+
+    CHECKERROR;
+
+    
+    for (float i = 0; i < 3; i++) {
+        glm::vec3 localLight(3 * (i == 0), 3 * (i == 1), 3 * (i == 2));
+        glm::vec3 localLightPos(sinf(2 * i) * 35, cosf(2 * i) * 35, 4);
+
+        loc = glGetUniformLocation(programId, "Light");
+        glUniform3fv(loc, 1, &(localLight[0]));
+
+        loc = glGetUniformLocation(programId, "lightPos");
+        glUniform3fv(loc, 1, &(localLightPos[0]));
+
+        objectRoot->Draw(localLightProgram, Identity);
+        CHECKERROR;
+    }
+
+    
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    
+
+    // Turn off the shader
+    localLightProgram->Unuse();
+    
+
 }
 
 

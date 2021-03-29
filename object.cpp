@@ -39,6 +39,7 @@ Object::Object(Shape* _shape, const int _objectId,
 
 void Object::Draw(ShaderProgram* program, glm::mat4& objectTr)
 {
+    CHECKERROR;
     // @@ The object specific parameters (uniform variables) used by
     // the shader are set here.  Scene specific parameters are set in
     // the DrawScene procedure in scene.cpp
@@ -49,6 +50,7 @@ void Object::Draw(ShaderProgram* program, glm::mat4& objectTr)
     // Inform the shader of the surface values Kd, Ks, and alpha.
     int loc = glGetUniformLocation(program->programId, "diffuse");
     glUniform3fv(loc, 1, &diffuseColor[0]);
+    CHECKERROR;
 
     loc = glGetUniformLocation(program->programId, "specular");
     glUniform3fv(loc, 1, &specularColor[0]);
@@ -61,6 +63,8 @@ void Object::Draw(ShaderProgram* program, glm::mat4& objectTr)
     loc = glGetUniformLocation(program->programId, "objectId");
     glUniform1i(loc, objectId);
 
+    CHECKERROR;
+    
     // Inform the shader of this object's model transformation.  The
     // inverse of the model transformation, needed for transforming
     // normals, is calculated and passed to the shader here.

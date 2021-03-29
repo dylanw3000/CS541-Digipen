@@ -50,7 +50,7 @@ public:
     double prev_time, now_time, time_since_last_refresh;
     double total_time;
 
-    FBO shadowFBO, upperReflectFBO, lowerReflectFBO;
+    FBO shadowFBO, upperReflectFBO, lowerReflectFBO, GBufferFBO;
     GLuint shadowMap;
 
     // Light parameters
@@ -77,6 +77,8 @@ public:
     ShaderProgram* lightingProgram;
     ShaderProgram* shadowProgram;
     ShaderProgram* reflectionProgram;
+    ShaderProgram* GBufferProgram;
+    ShaderProgram* localLightProgram;
     // @@ Declare additional shaders if necessary
 
 

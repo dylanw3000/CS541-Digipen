@@ -9,10 +9,12 @@
 class FBO {
 public:
     unsigned int fboID;
-    unsigned int textureID;
+    unsigned int textureID[4];
     int width, height;  // Size of the texture.
+    bool isGBuffer = false;
+    unsigned int depthBuffer;
 
-    void CreateFBO(const int w, const int h);
+    void CreateFBO(const int w, const int h, bool isGBuffer);
     void Bind();
     void Unbind();
 };

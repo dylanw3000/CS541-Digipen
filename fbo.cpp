@@ -12,8 +12,9 @@ using namespace gl;
 
 #include "fbo.h"
 
-void FBO::CreateFBO(const int w, const int h)
+void FBO::CreateFBO(const int w, const int h, bool isGBuffer)
 {
+    this->isGBuffer = isGBuffer;
     width = w;
     height = h;
 
@@ -21,7 +22,7 @@ void FBO::CreateFBO(const int w, const int h)
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fboID);
 
     // Create a render buffer, and attach it to FBO's depth attachment
-    unsigned int depthBuffer;
+    // unsigned int depthBuffer;
     glGenRenderbuffersEXT(1, &depthBuffer);
     glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, depthBuffer);
     glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH_COMPONENT,
@@ -33,8 +34,8 @@ void FBO::CreateFBO(const int w, const int h)
     // GL_RGBA32F and GL_RGBA constants set this texture to be 32 bit
     // floats for each of the 4 components.  Many other choices are
     // possible.
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    glGenTextures(1, &textureID[0]);
+    glBindTexture(GL_TEXTURE_2D, textureID[0]);
     glTexImage2D(GL_TEXTURE_2D, 0, (int)GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 
@@ -44,7 +45,59 @@ void FBO::CreateFBO(const int w, const int h)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (int)GL_LINEAR);
 
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
-                              GL_TEXTURE_2D, textureID, 0);
+                              GL_TEXTURE_2D, textureID[0], 0);
+
+
+    if (isGBuffer)
+    {
+        // Bind Texture 2
+        glGenTextures(1, &textureID[1]);
+
+        glBindTexture(GL_TEXTURE_2D, textureID[1]);
+        glTexImage2D(GL_TEXTURE_2D, 0, (int)GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (int)GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (int)GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (int)GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (int)GL_LINEAR);
+
+        glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT1_EXT,
+            GL_TEXTURE_2D, textureID[1], 0);
+
+
+        // Bind Texture 3
+        glGenTextures(1, &textureID[2]);
+
+        glBindTexture(GL_TEXTURE_2D, textureID[2]);
+        glTexImage2D(GL_TEXTURE_2D, 0, (int)GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (int)GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (int)GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (int)GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (int)GL_LINEAR);
+
+        glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT2_EXT,
+            GL_TEXTURE_2D, textureID[2], 0);
+
+
+        // Bind Texture 4
+        glGenTextures(1, &textureID[3]);
+
+        glBindTexture(GL_TEXTURE_2D, textureID[3]);
+        glTexImage2D(GL_TEXTURE_2D, 0, (int)GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (int)GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (int)GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (int)GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (int)GL_LINEAR);
+
+        glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT3_EXT,
+            GL_TEXTURE_2D, textureID[3], 0);
+    }
+
 
     // Check for completeness/correctness
     int status = (int)glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);

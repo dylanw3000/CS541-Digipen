@@ -130,8 +130,14 @@
   <ItemGroup>
     <None Include="final.frag" />
     <None Include="final.vert" />
+    <None Include="gbuff.frag" />
+    <None Include="gbuff.vert" />
     <None Include="lighting.frag" />
     <None Include="lighting.vert" />
+    <None Include="localLight.frag" />
+    <None Include="localLight.vert" />
+    <None Include="multilight.frag" />
+    <None Include="multilight.vert" />
     <None Include="reflect.frag" />
     <None Include="reflect.vert" />
     <None Include="shadow.frag" />
