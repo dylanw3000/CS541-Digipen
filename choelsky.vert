@@ -6,18 +6,14 @@
 ////////////////////////////////////////////////////////////////////////
 #version 330
 
-uniform mat4 ModelTr, NormalTr, WorldProj,  WorldView, WorldInverse, ShadowMatrix;
-uniform vec3 lightPos, eyePos;
+uniform mat4 ModelTr, View, Proj;
 
 in vec4 vertex;
-in vec3 vertexNormal;
-in vec2 vertexTexture;
-in vec3 vertexTangent;
 
 out vec4 shadowCoord;
 
 void main()
 {
-	gl_Position=WorldProj*WorldView*ModelTr*vertex;
-	shadowCoord = ShadowMatrix * ModelTr*vertex;
+	gl_Position=Proj*View*ModelTr*vertex;
+	shadowCoord = gl_Position;
 }

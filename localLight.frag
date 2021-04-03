@@ -71,6 +71,7 @@ void main()
         return;
     }
     
+    
     vec3 F = Ks + ((1,1,1) - Ks) * pow(1 - HL, 5);
     float G = 1 / pow(HL, 2);
     float D = ((a + 2)/6.28318) * pow(HN, a);

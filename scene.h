@@ -50,7 +50,7 @@ public:
     double prev_time, now_time, time_since_last_refresh;
     double total_time;
 
-    FBO shadowFBO, upperReflectFBO, lowerReflectFBO, GBufferFBO;
+    FBO shadowFBO, upperReflectFBO, lowerReflectFBO, GBufferFBO, compiledShadowFBO;
     GLuint shadowMap;
 
     // Light parameters
@@ -79,6 +79,9 @@ public:
     ShaderProgram* reflectionProgram;
     ShaderProgram* GBufferProgram;
     ShaderProgram* localLightProgram;
+    // ShaderProgram* choelskyProgram;
+    ShaderProgram* choleskyProgram;
+    ShaderProgram* choleskyProgramV;
     // @@ Declare additional shaders if necessary
 
 

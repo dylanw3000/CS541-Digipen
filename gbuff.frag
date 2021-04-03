@@ -54,7 +54,7 @@ void main()
     
     vec2 shadowIndex = shadowCoord.xy/shadowCoord.w;
     
-    bool inShadow  = false;
+    bool inShadow = false;
     
     if(shadowCoord.w > 0.0 && shadowIndex.x >= 0.0 && shadowIndex.x <= 1.0 && shadowIndex.y >= 0.0 && shadowIndex.y <= 1.0){
         if(shadowCoord.w > texture2D(shadowMap, shadowIndex).w + 0.01){
@@ -159,7 +159,7 @@ void main()
     
     
     gl_FragData[0].xyz = worldPos.xyz;
-    gl_FragData[1].xyz = normalVec.xyz;
+    gl_FragData[1].xyz = N.xyz;
     gl_FragData[2].rgb = Kd.rgb;
     gl_FragData[3].rgb = specular.rgb;
     gl_FragData[3].w = a;
