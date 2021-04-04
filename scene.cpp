@@ -520,20 +520,23 @@ void Scene::DrawScene()
 
     
     {
-        int blurWidth = 10;
+        int blurW = 10;
         if (mode == 2) {
-            blurWidth = 0;
+            blurW = 0;
+        }
+        if (mode == 3) {
+            blurW = 50;
         }
 
-        float s = (float)blurWidth / 2;
+        float s = (float)blurW / 2;
         float weights[101];
         float sum = 0;
-        for (int i = 0; i < blurWidth * 2 + 1; i++)
+        for (int i = 0; i < blurW * 2 + 1; i++)
         {
-            weights[i] = (float)exp(-.5 * pow((i - blurWidth) / s, 2));
+            weights[i] = expf(-.5 * powf((i - blurW) / s, 2));
             sum += weights[i];
         }
-        for (int i = 0; i < blurWidth * 2 + 1; i++)
+        for (int i = 0; i < blurW * 2 + 1; i++)
         {
             weights[i] /= sum;
         }
@@ -552,11 +555,11 @@ void Scene::DrawScene()
 
         glBindBuffer(GL_UNIFORM_BUFFER, blockID);
         glBindBufferBase(GL_UNIFORM_BUFFER, bindpoint, blockID);
-        glBufferData(GL_UNIFORM_BUFFER, (blurWidth * 2 + 1) * sizeof(float), &weights, GL_STATIC_DRAW);
+        glBufferData(GL_UNIFORM_BUFFER, (blurW * 2 + 1) * sizeof(float), &weights, GL_STATIC_DRAW);
 
 
         loc = glGetUniformLocation(programId, "w");
-        glUniform1i(loc, blurWidth);
+        glUniform1i(loc, blurW);
 
 
         loc = glGetUniformLocation(programId, "src"); // Perhaps "src" and "dst"
@@ -568,8 +571,6 @@ void Scene::DrawScene()
         loc = glGetUniformLocation(programId, "dst"); // Perhaps "src" and "dst"
         glBindImageTexture(1, compiledShadowFBO.textureID[0], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
         glUniform1i(loc, 1);
-        // Change GL_READ_ONLY to GL_WRITE_ONLY for output image
-        // Note: GL_RGBA32F means 4 channels (RGBA) of 32 bit floats.
 
 
 
@@ -594,11 +595,11 @@ void Scene::DrawScene()
 
         glBindBuffer(GL_UNIFORM_BUFFER, blockID);
         glBindBufferBase(GL_UNIFORM_BUFFER, bindpoint, blockID);
-        glBufferData(GL_UNIFORM_BUFFER, (blurWidth * 2 + 1) * sizeof(float), &weights, GL_STATIC_DRAW);
+        glBufferData(GL_UNIFORM_BUFFER, (blurW * 2 + 1) * sizeof(float), &weights, GL_STATIC_DRAW);
 
 
         loc = glGetUniformLocation(programId, "w");
-        glUniform1i(loc, blurWidth);
+        glUniform1i(loc, blurW);
 
 
         loc = glGetUniformLocation(programId, "src"); // Perhaps "src" and "dst"
@@ -668,7 +669,7 @@ void Scene::DrawScene()
         loc = glGetUniformLocation(programId, "mode");
         glUniform1i(loc, mode);
 
-        loc = glGetUniformLocation(programId, "w");
+        loc = glGetUniformLocation(programId, "blurW");
         glUniform1f(loc, 8.0);
 
         CHECKERROR;

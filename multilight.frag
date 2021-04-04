@@ -86,7 +86,7 @@ void main()
     float HL = max(dot(H,L), 0.0);
 
     
-    if (mode == 1 || mode == 2) {        // BRDF lighting
+    if (mode <= 2) {        // BRDF lighting
         bool inShadow  = false;
         // vec4 shadowCoord = shadowMatrix * vec4(worldPos.x,worldPos.y,worldPos.z,1);
         vec2 shadowIndex = shadowCoord.xy/shadowCoord.w;
@@ -153,8 +153,6 @@ void main()
             float G = 1 / pow(HL, 2);
             float D = ((a + 2)/6.28318) * pow(HN, a);
             FragColor.xyz = Ambient*Kd + (1-Gs)*Light*LN*(Kd/3.14159 + ((F*G*D)/4) );
-
-            
         }
         else{
             vec3 F = Ks + ((1,1,1) - Ks) * pow(1 - HL, 5);
