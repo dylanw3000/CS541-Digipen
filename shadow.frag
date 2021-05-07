@@ -17,7 +17,7 @@ void main()
     gl_FragData[0].z = pow(position.w / 150.0, 3);
     gl_FragData[0].w = pow(position.w / 150.0, 4);
 
-    if(mode == 2){
+    if(mode >= 7){
         gl_FragData[0] = position;
     }
 }

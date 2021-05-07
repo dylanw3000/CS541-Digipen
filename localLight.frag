@@ -32,10 +32,10 @@ uniform float time;
 
 uniform vec3 Light;    // Ii
 uniform vec3 Ambient;  // Ia
-uniform vec3 lightPos, eyePos;
+uniform vec3 lightPos;
 
 uniform int mode;
-uniform mat4 shadowMatrix;
+uniform mat4 shadowMatrix, WorldInverse;
 uniform sampler2D shadowMap, upperReflect, lowerReflect;
 uniform sampler2D skyTex, groundTex, wallTex, floorTex, teapotTex, frameTex, lFrameTex, rFrameTex;
 uniform sampler2D wallNormal, floorNormal, frameNormal, seaNormal;
@@ -51,8 +51,11 @@ void main()
     vec3 N = normalize(texture(normalVecMap, uv).xyz);
     vec3 worldPos = texture(worldPosMap, uv).xyz;
 
+    vec3 eyePos = (WorldInverse*vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    vec3 eyeVec = eyePos - worldPos;
+
     vec3 L = normalize(lightPos - worldPos);
-    vec3 V = normalize(eyePos - worldPos);
+    vec3 V = normalize(eyeVec);
     vec3 H = normalize(L+V);
     
     vec3 Kd = texture(KdMap, uv).xyz;

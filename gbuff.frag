@@ -36,7 +36,7 @@ uniform vec3 Ambient;  // Ia
 uniform int mode;
 uniform mat4 shadowMatrix;
 uniform sampler2D shadowMap, upperReflect, lowerReflect;
-uniform sampler2D skyTex, groundTex, wallTex, floorTex, teapotTex, frameTex, lFrameTex, rFrameTex;
+uniform sampler2D skyTex, skyTex2, groundTex, wallTex, floorTex, teapotTex, frameTex, lFrameTex, rFrameTex;
 uniform sampler2D wallNormal, floorNormal, frameNormal, seaNormal;
 
 uniform bool reflective;
@@ -68,7 +68,7 @@ void main()
     }
     else if(objectId == seaId) {
         vec3 R = -(2*dot(V,N) * N - V);
-        vec2 uv = vec2(-atan(R.y/R.x)/(2*3.14159), acos(R.z)/3.14159);
+        vec2 uv = vec2(-atan(R.y/R.x)/(3.14159), acos(R.z)/3.14159);
         Kd = texture(skyTex, uv).xyz;
 
         uv.x -= time * 0.001;
@@ -136,8 +136,11 @@ void main()
 
     
     if (objectId == skyId) {
-        vec2 uv = vec2(-atan(V.y/V.x)/(2*3.14159), acos(V.z)/3.14159);
+        vec2 uv = vec2(-atan(V.y/V.x)/(3.14159), acos(V.z)/3.14159);
         Kd.xyz = texture(skyTex, uv).xyz;
+        if(mode == 2){
+            Kd.xyz = texture(skyTex2, uv).xyz;
+        }
         a = -1;
     }
     else if(mode >=7) {        // BRDF lighting
@@ -158,10 +161,10 @@ void main()
     
     
     
-    gl_FragData[0].xyz = worldPos.xyz;
-    gl_FragData[1].xyz = N.xyz;
-    gl_FragData[2].rgb = Kd.rgb;
-    gl_FragData[3].rgb = specular.rgb;
+    gl_FragData[0].xyz = worldPos;
+    gl_FragData[1].xyz = N;
+    gl_FragData[2].xyz = Kd;
+    gl_FragData[3].xyz = specular;
     gl_FragData[3].w = a;
     
 

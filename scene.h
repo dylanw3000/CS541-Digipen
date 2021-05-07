@@ -29,7 +29,8 @@ enum ObjectIds {
     rPicId	= 8,
     teapotId	= 9,
     spheresId	= 10,
-    floorId     = 11
+    floorId     = 11,
+    pbsSphere = 12
 };
 
 class Shader;
@@ -89,6 +90,7 @@ public:
     // std::string texAddress = "skys/Tropical_Beach_8k.jpg";
     Texture *skyTex, *groundTex, *wallTex, *floorTex, *teapotTex, *frameTex, *lFrameTex, *rFrameTex;
     Texture* wallNormal, *floorNormal, *frameNormal, *seaNormal;
+    Texture *skyIrr, *skyTex2, *skyIrr2;
 
 
     void InitializeScene();

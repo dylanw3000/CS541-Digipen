@@ -55,6 +55,12 @@ const float grndPersistence = 0.03; // Terrain roughness: Slight:0.01  rough:0.0
 const float grndLow = -3.0;         // Lowest extent below sea level
 const float grndHigh = 5.0;        // Highest extent above sea level
 
+const float N = 20.f;
+struct {
+    float N;
+    float hammersley[2 * 100];
+} block;
+
 ////////////////////////////////////////////////////////////////////////
 // This macro makes it easy to sprinkle checks for OpenGL errors
 // throughout your code.  Most OpenGL calls can record errors, and a
@@ -312,12 +318,13 @@ void Scene::InitializeScene()
     Object* floor      = new Object(FloorPolygons, floorId, floorColor, black, 1);
     Object* teapot     = new Object(TeapotPolygons, teapotId, brassColor, brightSpec, 120, true);
     Object* podium     = new Object(BoxPolygons, boxId, glm::vec3(woodColor), polishedSpec, 10); 
-    Object* sky        = new Object(SpherePolygons, skyId, black, black, 0);
+    Object* sky        = new Object(SpherePolygons, skyId, black, black, 0, true);
     Object* ground     = new Object(GroundPolygons, groundId, grassColor, black, 1);
     Object* sea        = new Object(SeaPolygons, seaId, waterColor, brightSpec, 120);
     Object* spheres    = SphereOfSpheres(SpherePolygons);
     Object* leftFrame  = FramedPicture(Identity, lPicId, BoxPolygons, QuadPolygons);
-    Object* rightFrame = FramedPicture(Identity, rPicId, BoxPolygons, QuadPolygons); 
+    Object* rightFrame = FramedPicture(Identity, rPicId, BoxPolygons, QuadPolygons);
+    Object* proj3Sphere = new Object(SpherePolygons, pbsSphere, glm::vec3(.5, .5, .5), brightSpec, 10, true);
 
 
     // @@ To change the scene hierarchy, examine the hierarchy created
@@ -329,7 +336,8 @@ void Scene::InitializeScene()
     if (fullPolyCount) {
         objectRoot->add(sky, Scale(2000.0, 2000.0, 2000.0));
         objectRoot->add(sea); 
-        objectRoot->add(ground); }
+        objectRoot->add(ground); 
+    }
     objectRoot->add(central);
 // #ifndef REFL
     objectRoot->add(room,  Translate(0.0, 0.0, 0.02));
@@ -345,6 +353,8 @@ void Scene::InitializeScene()
     anim->add(teapot, Translate(0.1, 0.0, 1.5)*TeapotPolygons->modelTr);
     if (showSpheres && fullPolyCount)
         anim->add(spheres, Translate(0.0, 0.0, 0.0)*Scale(30.0, 30.0, 30.0));
+
+    central->add(proj3Sphere, Translate(2.5, 0.0, 1.5));
     
     // Room contains two framed pictures
     if (fullPolyCount) {
@@ -354,7 +364,10 @@ void Scene::InitializeScene()
     CHECKERROR;
 
     // Load in sky texture
-    skyTex = new Texture("./skys/sky.jpg");
+    skyTex = new Texture("./textures/IBL/Sierra_Madre_B_Ref.irr.hdr");
+    skyIrr = new Texture("./textures/IBL/Sierra_Madre_B_Ref.irr.hdr");
+    skyTex2 = new Texture("./textures/IBL/Alexs_Apt_2k.irr.hdr");
+    skyIrr2 = new Texture("./textures/IBL/Alexs_Apt_2k.irr.hdr");
     seaNormal = new Texture("./textures/ripples_normalmap.png");
     groundTex = new Texture("./textures/grass.jpg");
     wallTex = new Texture("./textures/Standard_red_pxr128.png");
@@ -370,6 +383,19 @@ void Scene::InitializeScene()
     CHECKERROR;
 
     total_time = 0.0;
+    
+    block.N = N; // N=20 ... 40 or whatever …
+    int kk;
+    float p, u;
+    int pos = 0;
+    for (int k = 0; k < N; k++) {
+        for (p = 0.5f, kk = k, u = 0.0f; kk; p *= 0.5f, kk >>= 1)
+            if (kk & 1)
+                u += p;
+        float v = (k + 0.5) / N;
+        block.hammersley[pos++] = u;
+        block.hammersley[pos++] = v;
+    }
 }
 
 void Scene::BuildTransforms()
@@ -521,12 +547,14 @@ void Scene::DrawScene()
     
     {
         int blurW = 10;
+        /*
         if (mode == 2) {
             blurW = 0;
         }
         if (mode == 3) {
             blurW = 50;
         }
+        */
 
         float s = (float)blurW / 2;
         float weights[101];
@@ -764,6 +792,13 @@ void Scene::DrawScene()
             unit++;
 
             glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, skyTex2->textureId);
+            loc = glGetUniformLocation(programId, "skyTex2");
+            glUniform1i(loc, unit);
+
+            unit++;
+
+            glActiveTexture(GL_TEXTURE0 + unit);
             glBindTexture(GL_TEXTURE_2D, groundTex->textureId);
             loc = glGetUniformLocation(programId, "groundTex");
             glUniform1i(loc, unit);
@@ -901,9 +936,6 @@ void Scene::DrawScene()
     loc = glGetUniformLocation(programId, "lightPos");
     glUniform3fv(loc, 1, &(lightPos[0]));  
 
-    loc = glGetUniformLocation(programId, "eyePos");
-    glUniform3fv(loc, 1, &(eye[0]));
-
     loc = glGetUniformLocation(programId, "mode");
     glUniform1i(loc, mode);
 
@@ -973,6 +1005,36 @@ void Scene::DrawScene()
         glBindTexture(GL_TEXTURE_2D, compiledShadowFBO.textureID[0]);
         loc = glGetUniformLocation(programId, "choleskyMap");
         glUniform1i(loc, unit);
+
+        unit++;
+
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, skyIrr->textureId);
+        loc = glGetUniformLocation(programId, "skyIrr");
+        glUniform1i(loc, unit);
+
+        unit++;
+
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, skyIrr2->textureId);
+        loc = glGetUniformLocation(programId, "skyIrr2");
+        glUniform1i(loc, unit);
+
+    }
+
+    {
+        unsigned int id, bindpoint;
+        glGenBuffers(1, &id);
+        bindpoint = 1; // Increment this for other blocks.
+        glBindBufferBase(GL_UNIFORM_BUFFER, bindpoint, id);
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(block), &block, GL_STATIC_DRAW);
+
+        loc = glGetUniformBlockIndex(programId, "HammersleyBlock");
+        glUniformBlockBinding(programId, loc, bindpoint);
+
+
+        // loc = glGetUniformLocation(programId, "N");
+        // glUniform1f(loc, (float)N);
     }
 
     CHECKERROR;
@@ -1030,9 +1092,6 @@ void Scene::DrawScene()
 
         // loc = glGetUniformLocation(programId, "lightPos");
         // glUniform3fv(loc, 1, &(lightPos[0]));
-
-        loc = glGetUniformLocation(programId, "eyePos");
-        glUniform3fv(loc, 1, &(eye[0]));
 
         loc = glGetUniformLocation(programId, "mode");
         glUniform1i(loc, mode);
@@ -1111,12 +1170,12 @@ void Scene::DrawScene()
             objectRoot->Draw(localLightProgram, Identity);
             CHECKERROR;
         }
-        */
+        
 
-        /*
-        for (float i = 0; i < 24; i++) {
+        
+        for (float i = 0; i < 32; i++) {     // change to i < 32 for optimal scattering of lights
             glm::vec3 localLight(3,3,3);
-            glm::vec3 localLightPos(sinf(i*3.14/8) * i*5, cosf(i*3.14/8) * i*5, 1);
+            glm::vec3 localLightPos(i*5 - 80, sinf(i) * 80, 1);
 
             loc = glGetUniformLocation(programId, "Light");
             glUniform3fv(loc, 1, &(localLight[0]));
